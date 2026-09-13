@@ -581,9 +581,10 @@ img{ max-width:100%; display:block; }
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
 }
 .polaroid__icon{
-  font-size: 2.2rem;
-  color: rgba(255,255,255,0.85);
-  text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  width: 2.2rem;
+  height: 2.2rem;
+  fill: rgba(255,255,255,0.85);
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
 }
 .polaroid__caption{
   font-family: var(--font-script);
@@ -1279,7 +1280,15 @@ img{ max-width:100%; display:block; }
   align-items:center;
   justify-content:center;
 }
-.question-text__heart{ color: var(--color-rose); margin-left: 0.2em; }
+.question-text__heart{
+  width: 0.8em;
+  height: 0.8em;
+  fill: var(--color-rose);
+  display: inline-block;
+  vertical-align: -0.05em;
+  margin-left: 0.2em;
+  filter: drop-shadow(0 0 6px rgba(197,58,92,0.5));
+}
 
 .question-stage{
   position:relative;
@@ -1346,6 +1355,8 @@ img{ max-width:100%; display:block; }
   transform: translate(-50%,-50%);
   z-index: 3;
   pointer-events:none;
+  width: min(34vw, 148px);
+  height: min(34vw, 148px);
 }
 .galaxy-moon-glow{
   position:absolute;
@@ -1363,47 +1374,47 @@ img{ max-width:100%; display:block; }
   50%{ opacity: 1; }
 }
 .galaxy-moon{
-  position: relative;
-  width: min(34vw, 148px);
-  height: min(34vw, 148px);
-  border-radius:50%;
-  background: radial-gradient(circle at 36% 30%, #f7f0dd 0%, #d8cba9 32%, #a89a7d 62%, #6f6355 100%);
-  box-shadow:
-    inset -20px -16px 34px rgba(0,0,0,0.5),
-    inset 12px 10px 20px rgba(255,255,255,0.3),
-    0 0 50px rgba(230,220,195,0.45);
-  overflow: hidden;
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
-.crater{
-  position:absolute;
-  border-radius:50%;
-  background: rgba(60,50,40,0.28);
-  box-shadow: inset -2px -2px 4px rgba(0,0,0,0.25), inset 1px 1px 3px rgba(255,255,255,0.2);
+.galaxy-moon-fallback{ z-index: 1; }
+.galaxy-moon-3d{
+  z-index: 2;
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,0.5));
 }
-.crater--1{ width:22%; height:22%; top:18%; left:28%; }
-.crater--2{ width:12%; height:12%; top:42%; left:60%; }
-.crater--3{ width:28%; height:28%; top:56%; left:20%; }
-.crater--4{ width:9%; height:9%; top:26%; left:66%; }
-.crater--5{ width:15%; height:15%; top:68%; left:52%; }
-.crater--6{ width:8%; height:8%; top:12%; left:52%; }
 
 .galaxy-heart{
   position:absolute;
   line-height:1;
   transform: translate(-50%,-50%);
   animation: galaxyDrift 6s ease-in-out infinite;
+  fill: currentColor;
 }
 .galaxy-heart--blue{
   color: #8fc7ff;
-  text-shadow: 0 0 8px rgba(143,199,255,0.8), 0 0 16px rgba(143,199,255,0.4);
+  filter: drop-shadow(0 0 4px rgba(143,199,255,0.8)) drop-shadow(0 0 8px rgba(143,199,255,0.4));
   pointer-events:none;
 }
 .galaxy-heart--rose{
+  display:block;
+  background:none;
+  border:none;
+  padding:0;
   color: var(--color-rose);
-  text-shadow: 0 0 10px rgba(230,181,102,0.7), 0 0 20px rgba(197,58,92,0.6);
+  filter: drop-shadow(0 0 5px rgba(230,181,102,0.7)) drop-shadow(0 0 10px rgba(197,58,92,0.6));
   cursor:pointer;
   pointer-events:auto;
   animation-name: galaxyDriftRose;
+}
+.galaxy-heart--rose svg{
+  width:100%;
+  height:100%;
+  display:block;
+  fill: currentColor;
 }
 @keyframes galaxyDrift{
   0%,100%{ transform: translate(-50%,-50%) translateY(0); opacity: var(--base-opacity, 0.8); }
@@ -1453,10 +1464,11 @@ img{ max-width:100%; display:block; }
 .galaxy-banner.visible{ opacity:1; visibility:visible; }
 .galaxy-banner__heart{
   display:block;
-  color: var(--color-rose);
-  font-size: 1.05rem;
-  margin-bottom: 0.3rem;
-  text-shadow: 0 0 10px rgba(197,58,92,0.6);
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: var(--color-rose);
+  margin: 0 auto 0.3rem;
+  filter: drop-shadow(0 0 6px rgba(197,58,92,0.6));
 }
 .galaxy-banner__text{
   font-family: var(--font-display);
@@ -1761,7 +1773,7 @@ img{ max-width:100%; display:block; }
   .question-text{ font-size: clamp(1.9rem, 2.6vw, 2.7rem); }
 
   /* Galaxy */
-  .galaxy-moon{ width: min(26vw, 240px); height: min(26vw, 240px); }
+  .galaxy-moon-position{ width: min(26vw, 240px); height: min(26vw, 240px); }
   .galaxy-moon-glow{ width: min(46vw, 460px); height: min(46vw, 460px); }
   .galaxy-banner{ max-width: min(60vw, 520px); padding: 1.1rem 1.7rem; }
   .galaxy-banner__text{ font-size: 1.3rem; }
