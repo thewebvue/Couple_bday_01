@@ -181,6 +181,20 @@ const $ = (sel, scope = document) => scope.querySelector(sel);
 const $$ = (sel, scope = document) => Array.from(scope.querySelectorAll(sel));
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+// A real heart shape drawn as SVG, used everywhere instead of the "♥" text
+// character — some devices/fonts substitute an unrelated glyph (even a
+// triangle) for that character, so SVG guarantees it always looks right.
+const HEART_PATH_D = "M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z";
+function createHeartSVG(className) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 22");
+  if (className) svg.setAttribute("class", className);
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", HEART_PATH_D);
+  svg.appendChild(path);
+  return svg;
+}
+
 /* ---------------------------------------------------------
    3. Viewport height fix (mobile browser chrome)
    --------------------------------------------------------- */
@@ -271,13 +285,13 @@ function burstHearts(x, y, count = 16, opts = {}) {
   const sizeMin = opts.sizeMin || 14;
   const sizeMax = opts.sizeMax || 26;
   for (let i = 0; i < count; i++) {
-    const el = document.createElement("div");
-    el.className = "burst-heart";
-    el.textContent = Math.random() > 0.4 ? "♥" : "❤";
+    const el = createHeartSVG("burst-heart");
+    const size = sizeMin + Math.random() * (sizeMax - sizeMin);
     el.style.left = x + "px";
     el.style.top = y + "px";
-    el.style.fontSize = (sizeMin + Math.random() * (sizeMax - sizeMin)) + "px";
-    el.style.color = Math.random() > 0.5 ? cssVar("--color-rose") : cssVar("--color-gold");
+    el.style.width = size + "px";
+    el.style.height = size + "px";
+    el.style.fill = Math.random() > 0.5 ? cssVar("--color-rose") : cssVar("--color-gold");
     document.body.appendChild(el);
     gsap.set(el, { xPercent: -50, yPercent: -50 });
 
@@ -691,7 +705,7 @@ function initGallery() {
     slide.className = "swiper-slide polaroid";
     const photoInner = photo.image
       ? `<img src="${photo.image}" alt="${photo.caption}" style="width:100%;height:100%;object-fit:cover;border-radius:2px;">`
-      : `<span class="polaroid__icon">♥</span>`;
+      : `<svg class="polaroid__icon" viewBox="0 0 24 22"><path d="${HEART_PATH_D}"></path></svg>`;
     const bg = photo.image ? "" : `style="background:linear-gradient(155deg, ${photo.colors[0]}, ${photo.colors[1]})"`;
     slide.innerHTML = `
       <div class="polaroid__photo" ${bg}>${photoInner}</div>
@@ -1054,6 +1068,13 @@ let galaxyDragStart = { x: 0, y: 0, offX: 0, offY: 0 };
 let galaxyDragDistance = 0;
 let galaxyBounds = { maxX: 0, maxY: 0 };
 const GALAXY_PARALLAX = 0.45; // background drifts slower than the hearts = depth
+const GALAXY_ROTATION_DURATION = 150; // seconds per revolution — shared by the 2D field and the 3D moon so they stay in sync
+let galaxyRotationStartTime = 0;
+let moon3DInitialized = false;
+let moonRenderer3D = null;
+let moonScene3D = null;
+let moonCamera3D = null;
+let moonMesh3D = null;
 const galaxyViewport = document.getElementById("galaxy-viewport");
 const galaxyField = document.getElementById("galaxy-field");
 const galaxyCanvas = document.getElementById("galaxy-canvas");
@@ -1074,13 +1095,83 @@ function initGalaxy() {
 
 function startGalaxyRotation() {
   // A slow continuous spin gives the whole scene a real "turning galaxy"
-  // feel. The moon rotates in the exact same tween as the star/heart field
-  // so they always turn together; the background canvas spins slightly
-  // slower for parallax depth.
-  const galaxyMoon = document.getElementById("galaxy-moon");
-  gsap.set([galaxyField, galaxyCanvas, galaxyMoon], { transformOrigin: "50% 50%" });
-  gsap.to([galaxyField, galaxyMoon], { rotation: 360, duration: 150, repeat: -1, ease: "none" });
-  gsap.to(galaxyCanvas, { rotation: 360, duration: 210, repeat: -1, ease: "none" });
+  // feel. The 3D moon is rendered separately (see initMoon3D) and reads
+  // the same start time + duration below to stay perfectly in sync; the
+  // background canvas spins a little slower than the star/heart field
+  // for parallax depth.
+  gsap.set([galaxyField, galaxyCanvas], { transformOrigin: "50% 50%" });
+  gsap.to(galaxyField, { rotation: 360, duration: GALAXY_ROTATION_DURATION, repeat: -1, ease: "none" });
+  gsap.to(galaxyCanvas, { rotation: 360, duration: GALAXY_ROTATION_DURATION * 1.4, repeat: -1, ease: "none" });
+
+  galaxyRotationStartTime = Date.now();
+  initMoon3D();
+}
+
+async function initMoon3D() {
+  if (moon3DInitialized) return;
+  moon3DInitialized = true;
+
+  const canvasEl = document.getElementById("galaxy-moon-canvas");
+  if (!canvasEl || typeof canvasEl.getContext !== "function") return;
+
+  try {
+    const THREE = await import("three");
+    const width = canvasEl.clientWidth || 148;
+    const height = canvasEl.clientHeight || 148;
+
+    moonScene3D = new THREE.Scene();
+    moonCamera3D = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    moonCamera3D.position.z = 6;
+
+    moonRenderer3D = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: true });
+    moonRenderer3D.setSize(width, height, false);
+    moonRenderer3D.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    if ("outputColorSpace" in moonRenderer3D) moonRenderer3D.outputColorSpace = THREE.SRGBColorSpace;
+
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      "https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/planets/moon_1024.jpg",
+      (texture) => {
+        const geometry = new THREE.SphereGeometry(2.15, 64, 64);
+        const material = new THREE.MeshStandardMaterial({
+          map: texture,
+          bumpMap: texture,
+          bumpScale: 0.02,
+          roughness: 0.95,
+          metalness: 0.05
+        });
+        moonMesh3D = new THREE.Mesh(geometry, material);
+        moonScene3D.add(moonMesh3D);
+
+        moonScene3D.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const dirLight = new THREE.DirectionalLight(0xfff4e0, 1.9);
+        dirLight.position.set(4, 1.5, 3);
+        moonScene3D.add(dirLight);
+
+        // The real moon rendered successfully — hide the SVG stand-in
+        // underneath so there's only ever one moon visible, not two.
+        const fallback = document.getElementById("galaxy-moon-fallback");
+        if (fallback) fallback.style.display = "none";
+
+        renderMoon3DLoop();
+      },
+      undefined,
+      () => { /* texture blocked/failed — the SVG moon underneath stays visible */ }
+    );
+  } catch (e) {
+    /* three.js failed to load — the SVG moon underneath stays visible */
+  }
+}
+
+function renderMoon3DLoop() {
+  requestAnimationFrame(renderMoon3DLoop);
+  if (moonMesh3D) {
+    const elapsedSeconds = (Date.now() - galaxyRotationStartTime) / 1000;
+    moonMesh3D.rotation.y = (elapsedSeconds / GALAXY_ROTATION_DURATION) * Math.PI * 2;
+  }
+  if (moonRenderer3D && moonScene3D && moonCamera3D) {
+    moonRenderer3D.render(moonScene3D, moonCamera3D);
+  }
 }
 
 function drawGalaxyBackground(canvas, w, h) {
@@ -1176,51 +1267,82 @@ function drawGalaxyBackground(canvas, w, h) {
   }
 }
 
+function computeGalaxyFieldSize() {
+  // Size off the larger of the current viewport and the physical screen,
+  // so a window that gets maximized/resized after this first runs (or a
+  // preview panel that reports a smaller size than its final display)
+  // never ends up with a field too small to cover it — that's what showed
+  // up as a hard black edge cutting across the galaxy on wider screens.
+  const effectiveW = Math.max(window.innerWidth, window.screen?.width || 0);
+  const effectiveH = Math.max(window.innerHeight, window.screen?.height || 0);
+  const diagonal = Math.hypot(effectiveW, effectiveH);
+  return Math.max(diagonal * 1.7, Math.max(effectiveW, effectiveH) * 2.4);
+}
+
+function applyGalaxyFieldSize(FIELD_SIZE) {
+  const offsetX = -(FIELD_SIZE - window.innerWidth) / 2;
+  const offsetY = -(FIELD_SIZE - window.innerHeight) / 2;
+
+  galaxyField.style.width = FIELD_SIZE + "px";
+  galaxyField.style.height = FIELD_SIZE + "px";
+  galaxyField.style.left = offsetX + "px";
+  galaxyField.style.top = offsetY + "px";
+
+  galaxyCanvas.style.width = FIELD_SIZE + "px";
+  galaxyCanvas.style.height = FIELD_SIZE + "px";
+  galaxyCanvas.style.left = offsetX + "px";
+  galaxyCanvas.style.top = offsetY + "px";
+
+  // Bounds are still expressed relative to the viewport so dragging feels
+  // consistent regardless of how large the underlying field had to become.
+  galaxyBounds.maxX = Math.min((FIELD_SIZE - window.innerWidth) / 2, window.innerWidth * 0.9);
+  galaxyBounds.maxY = Math.min((FIELD_SIZE - window.innerHeight) / 2, window.innerHeight * 0.9);
+}
+
+let galaxyResizeTimeoutId = null;
+function handleGalaxyResize() {
+  clearTimeout(galaxyResizeTimeoutId);
+  galaxyResizeTimeoutId = setTimeout(() => {
+    if (!galaxyBuilt) return;
+    const currentSize = parseFloat(galaxyField.style.width) || 0;
+    const neededSize = computeGalaxyFieldSize();
+    if (neededSize > currentSize) {
+      // The viewport outgrew the field (e.g. the window was maximized) —
+      // resize and redraw so the starfield fully covers it again.
+      applyGalaxyFieldSize(neededSize);
+      drawGalaxyBackground(galaxyCanvas, neededSize, neededSize);
+    } else {
+      // Same field size, just re-center the offset for the new viewport.
+      applyGalaxyFieldSize(currentSize);
+    }
+  }, 200);
+}
+
 function buildGalaxyField() {
   if (galaxyBuilt) return;
   galaxyBuilt = true;
 
-  // The field now rotates continuously, so it must stay large enough at
-  // every angle to fully cover the viewport — a plain 2.2x rectangle was
-  // only safe for panning, not spinning. Sizing off the viewport diagonal
-  // guarantees no empty corner ever peeks through while it turns.
-  const diagonal = Math.hypot(window.innerWidth, window.innerHeight);
-  const FIELD_SIZE = Math.max(diagonal * 1.7, Math.max(window.innerWidth, window.innerHeight) * 2.4);
+  const FIELD_SIZE = computeGalaxyFieldSize();
   const FIELD_W = FIELD_SIZE;
   const FIELD_H = FIELD_SIZE;
-  const offsetX = -(FIELD_W - window.innerWidth) / 2;
-  const offsetY = -(FIELD_H - window.innerHeight) / 2;
-
-  galaxyField.style.width = FIELD_W + "px";
-  galaxyField.style.height = FIELD_H + "px";
-  galaxyField.style.left = offsetX + "px";
-  galaxyField.style.top = offsetY + "px";
-
-  galaxyCanvas.style.width = FIELD_W + "px";
-  galaxyCanvas.style.height = FIELD_H + "px";
-  galaxyCanvas.style.left = offsetX + "px";
-  galaxyCanvas.style.top = offsetY + "px";
+  applyGalaxyFieldSize(FIELD_SIZE);
   drawGalaxyBackground(galaxyCanvas, FIELD_W, FIELD_H);
 
-  // Bounds are still expressed relative to the viewport so dragging feels
-  // consistent regardless of how large the underlying field had to become.
-  galaxyBounds.maxX = Math.min((FIELD_W - window.innerWidth) / 2, window.innerWidth * 0.9);
-  galaxyBounds.maxY = Math.min((FIELD_H - window.innerHeight) / 2, window.innerHeight * 0.9);
-
   startGalaxyRotation();
+  window.addEventListener("resize", handleGalaxyResize);
 
   // A galaxy full of blue hearts, drifting gently — sized/faded for depth
-  const blueCount = 220;
+  const blueCount = 320;
   const heartsFrag = document.createDocumentFragment();
   for (let i = 0; i < blueCount; i++) {
-    const h = document.createElement("span");
-    h.className = "galaxy-heart galaxy-heart--blue";
-    h.textContent = "♥";
+    const h = createHeartSVG("galaxy-heart galaxy-heart--blue");
+    h.querySelector("path").style.fill = "url(#heartGlossBlue)";
     h.style.left = Math.random() * FIELD_W + "px";
     h.style.top = Math.random() * FIELD_H + "px";
     const depth = Math.random();
     const size = 7 + depth * 17;
-    h.style.fontSize = size + "px";
+    h.style.width = size + "px";
+    h.style.height = size + "px";
     h.style.setProperty("--base-opacity", (0.25 + depth * 0.55).toFixed(2));
     h.style.animationDuration = 5 + Math.random() * 4 + "s";
     h.style.animationDelay = -(Math.random() * 6) + "s";
@@ -1235,11 +1357,15 @@ function buildGalaxyField() {
     const h = document.createElement("button");
     h.type = "button";
     h.className = "galaxy-heart galaxy-heart--rose";
-    h.textContent = "♥";
+    const heartSvg = createHeartSVG();
+    heartSvg.querySelector("path").style.fill = "url(#heartGlossRose)";
+    h.appendChild(heartSvg);
     h.setAttribute("aria-label", "Reveal a message");
     h.style.left = (0.1 + 0.8 * Math.random()) * FIELD_W + "px";
     h.style.top = (0.1 + 0.8 * Math.random()) * FIELD_H + "px";
-    h.style.fontSize = 22 + Math.random() * 6 + "px";
+    const roseSize = 24 + Math.random() * 7;
+    h.style.width = roseSize + "px";
+    h.style.height = roseSize + "px";
     h.style.animationDuration = 4.5 + Math.random() * 3 + "s";
     h.style.animationDelay = -(Math.random() * 5) + "s";
     h.addEventListener("click", () => {
