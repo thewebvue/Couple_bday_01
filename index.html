@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>A Little Something For You</title>
+<meta name="description" content="A personalized romantic digital surprise." />
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Dancing+Script:wght@500;600;700&family=Poppins:wght@300;400;500;600&family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+
+<!-- Swiper (gallery swipe) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- Shared heart clip-path (objectBoundingBox = scales to any element automatically) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <clipPath id="heartClip" clipPathUnits="objectBoundingBox">
+      <path d="M0.7375,0.0c-0.1062,0.0,-0.1969,0.0931,-0.2375,0.1931C0.4594,0.0931,0.3688,0.0,0.2625,0.0C0.1187,0.0,0.0,0.131,0.0,0.2897c0.0,0.3241,0.2969,0.4103,0.5,0.7448c0.2031,-0.3345,0.5,-0.4207,0.5,-0.7448C1.0,0.131,0.8812,0.0,0.7375,0.0z"/>
+    </clipPath>
+  </defs>
+</svg>
+
+<!-- Ambient night-sky canvas: stars + drifting gold embers, sits behind everything -->
+<canvas id="sky-canvas" aria-hidden="true"></canvas>
+
+<!-- Progress dots -->
+<nav class="progress-dots" id="progress-dots" aria-label="Progress"></nav>
+
+<!-- Back to previous scene -->
+<button class="back-btn" id="back-btn" type="button" aria-label="Go back to the previous part">‹</button>
+
+<!-- Background music -->
+<audio id="bg-audio" loop preload="auto">
+  <source src="bg_audio.mp4" type="audio/mp4">
+  <source src="bg_audio.mp3" type="audio/mpeg">
+</audio>
+<button class="music-btn" id="music-btn" type="button" aria-label="Toggle background music">
+  <svg viewBox="0 0 24 24" class="music-btn__icon" aria-hidden="true">
+    <path d="M3 9v6h4l5 5V4L7 9H3z"></path>
+    <path class="music-btn__wave" d="M16.2 8.2c1.1.9 1.8 2.3 1.8 3.8s-.7 2.9-1.8 3.8"></path>
+    <path class="music-btn__wave" d="M18.6 5.6c1.9 1.6 3.1 4 3.1 6.4s-1.2 4.8-3.1 6.4"></path>
+    <line class="music-btn__mute-x" x1="3.5" y1="3.5" x2="20.5" y2="20.5"></line>
+  </svg>
+</button>
+
+<!-- Toast for share/copy feedback -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Favorite-memory modal (opened from the filmstrip below the cake) -->
+<div class="fav-modal" id="fav-modal">
+  <div class="fav-modal__backdrop" id="fav-modal-backdrop"></div>
+  <div class="fav-modal__panel" role="dialog" aria-modal="true" aria-labelledby="fav-modal-title">
+    <button class="fav-modal__close" id="fav-modal-close" type="button" aria-label="Close">✕</button>
+    <div class="fav-modal__media" id="fav-modal-media"></div>
+    <p class="fav-modal__title" id="fav-modal-title"></p>
+    <p class="fav-modal__caption" id="fav-modal-caption"></p>
+  </div>
+</div>
+
+<main id="app">
+
+  <!-- ===================== SCENE 1 — INTRO / UNWRAP ===================== -->
+  <section class="scene scene--intro active" id="scene-intro" data-scene="intro">
+    <div class="scene-inner intro__content">
+      <p class="intro__message">A little something for <span class="name-highlight" id="intro-name">Arina</span></p>
+
+      <button class="envelope" id="envelope" type="button" aria-label="Open the gift">
+        <span class="envelope__glow"></span>
+        <span class="envelope__back"></span>
+        <span class="envelope__letter">
+          <svg class="envelope__heart" viewBox="0 0 24 22" aria-hidden="true">
+            <path d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z"/>
+          </svg>
+        </span>
+        <span class="envelope__flap"></span>
+      </button>
+
+      <button class="btn btn--glow" id="unwrap-btn" type="button">
+        <span>Unwrap Your Surprise</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 2 — HEART PULL & RELEASE ===================== -->
+  <section class="scene scene--heart" id="scene-heart" data-scene="heart">
+    <div class="scene-inner">
+      <h2 class="scene-title">Pull the heart &amp; let go</h2>
+
+      <div class="heart-pull" id="heart-pull">
+        <div class="heart-pull__string" id="heart-string"></div>
+        <div class="heart-pull__anchor" id="heart-drag">
+          <svg class="heart-pull__svg" viewBox="0 0 24 22" aria-hidden="true">
+            <defs>
+              <linearGradient id="heartGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="var(--color-blush)"/>
+                <stop offset="100%" stop-color="var(--color-rose)"/>
+              </linearGradient>
+            </defs>
+            <path fill="url(#heartGrad)" d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z"/>
+          </svg>
+        </div>
+      </div>
+
+      <p class="hint-text" id="heart-hint">Drag down, then release</p>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 3 — GROWING TREE OF HEARTS ===================== -->
+  <section class="scene scene--tree" id="scene-tree" data-scene="tree">
+    <div class="scene-inner tree-scene-inner">
+      <div class="tree-wrap">
+        <svg id="tree-svg" viewBox="0 0 400 520" class="tree-svg" aria-hidden="true">
+          <g id="branches-group" fill="none" stroke="var(--color-branch)" stroke-width="5" stroke-linecap="round"></g>
+          <g id="hearts-group"></g>
+        </svg>
+      </div>
+      <h2 class="tree-title">
+        <span id="tree-line1">Happy Birthday,</span>
+        <span id="tree-line2" class="tree-title__script">My Favorite Person</span>
+      </h2>
+      <button class="btn btn--outline scene-continue" id="tree-continue" data-next type="button" hidden>Continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 4 — POP THE BALLOONS ===================== -->
+  <section class="scene scene--balloons" id="scene-balloons" data-scene="balloons">
+    <div class="scene-inner">
+      <h2 class="scene-title">Pop the balloons</h2>
+      <p class="scene-subtitle" id="balloons-subtitle">Each one holds a reason you're loved</p>
+
+      <div class="balloons" id="balloons-wrap"></div>
+    </div>
+
+    <!-- Reason reveal card -->
+    <div class="reason-overlay" id="reason-overlay">
+      <div class="reason-card" id="reason-card">
+        <p class="reason-card__index" id="reason-index">Reason #1</p>
+        <p class="reason-card__text" id="reason-text"></p>
+        <button class="btn btn--small" id="reason-close" type="button">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 5 — POLAROID GALLERY ===================== -->
+  <section class="scene scene--gallery" id="scene-gallery" data-scene="gallery">
+    <div class="scene-inner">
+      <h2 class="scene-title">A walk down memory lane</h2>
+      <p class="scene-subtitle">Swipe through</p>
+
+      <div class="swiper gallery-swiper">
+        <div class="swiper-wrapper" id="gallery-wrapper"></div>
+      </div>
+
+      <button class="btn btn--outline scene-continue" data-next type="button">Continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 5.5 — CAKE + FAVORITE THINGS ===================== -->
+  <section class="scene scene--cake" id="scene-cake" data-scene="cake">
+    <div class="scene-inner cake-scene-inner">
+      <h2 class="scene-title">Make a wish</h2>
+
+      <div class="cake" id="cake" aria-hidden="true">
+        <div class="cake-topper" id="cake-topper">
+          <span class="cake-topper__flag" id="cake-topper-flag">Happy Birthday!</span>
+        </div>
+
+        <div class="cake-butterflies">
+          <span class="butterfly butterfly--1"><span class="butterfly__wing butterfly__wing--l"></span><span class="butterfly__wing butterfly__wing--r"></span></span>
+          <span class="butterfly butterfly--2"><span class="butterfly__wing butterfly__wing--l"></span><span class="butterfly__wing butterfly__wing--r"></span></span>
+        </div>
+
+        <div class="cake-candles" id="cake-candles">
+          <div class="candle"><span class="candle__flame"></span><span class="candle__stick"></span></div>
+          <div class="candle"><span class="candle__flame"></span><span class="candle__stick"></span></div>
+          <div class="candle"><span class="candle__flame"></span><span class="candle__stick"></span></div>
+        </div>
+
+        <div class="cake-tiers" id="cake-tiers">
+          <div class="cake-tier cake-tier--top" id="tier-top">
+            <span class="cake-glaze" id="cake-glaze"></span>
+          </div>
+          <div class="cake-trim"></div>
+          <div class="cake-tier cake-tier--mid" id="tier-mid"></div>
+          <div class="cake-trim"></div>
+          <div class="cake-tier cake-tier--bottom" id="tier-bottom"></div>
+        </div>
+
+        <div class="cake-decor" id="cake-decor"></div>
+
+        <div class="cake-stand" id="cake-stand">
+          <div class="cake-stand__top"></div>
+          <div class="cake-stand__pole"></div>
+          <div class="cake-stand__base"></div>
+        </div>
+
+        <div class="cake-glow"></div>
+      </div>
+
+      <p class="cake-message" id="cake-message">Happy Birthday, Arina 🎂</p>
+
+      <div class="favorites-section" id="favorites-section">
+        <h3 class="favorites-title">A Few More Things We Love</h3>
+        <div class="filmstrip-wrap">
+          <div class="filmstrip-track" id="filmstrip-track"></div>
+        </div>
+      </div>
+
+      <button class="btn btn--outline scene-continue" data-next type="button">Continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 6 — LOVE LETTER ===================== -->
+  <section class="scene scene--letter" id="scene-letter" data-scene="letter">
+    <div class="scene-inner">
+      <div class="letter-scene" id="letter-scene">
+
+        <button class="envelope2" id="envelope2" type="button" aria-label="Break the seal and open the letter">
+          <span class="envelope2__back"></span>
+          <span class="envelope2__flap"></span>
+          <span class="envelope2__seal" id="wax-seal">
+            <svg viewBox="0 0 24 22" aria-hidden="true"><path d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z"/></svg>
+          </span>
+        </button>
+
+        <p class="letter-hint" id="letter-hint">Tap the seal to open</p>
+
+        <div class="letter-paper" id="letter-paper">
+          <p class="letter-paper__salutation" id="letter-to">Dear Arina,</p>
+          <p class="letter-paper__body" id="letter-body"></p>
+          <p class="letter-paper__sign" id="letter-sign"></p>
+          <button class="btn btn--outline scene-continue" id="letter-continue" data-next type="button" hidden>Continue</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 6.5 — DO YOU LOVE ME? (BUNNY) ===================== -->
+  <section class="scene scene--question" id="scene-question" data-scene="question">
+    <div class="scene-inner question-scene-inner">
+      <div class="bunny" id="bunny" aria-hidden="true">
+        <svg class="bunny-svg" viewBox="0 0 120 118">
+          <defs>
+            <linearGradient id="bunnyHeadGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fff8ef"/>
+              <stop offset="100%" stop-color="#f6d9c9"/>
+            </linearGradient>
+            <linearGradient id="bunnyEarOuterGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fff8ef"/>
+              <stop offset="100%" stop-color="#f2c2d4"/>
+            </linearGradient>
+            <linearGradient id="bunnyPawGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#f7d7e2"/>
+            </linearGradient>
+          </defs>
+
+          <path class="bunny-ear-outer" d="M41,32 C29,-6 14,-11 23,23 C27,40 37,49 44,42 Z"></path>
+          <path class="bunny-ear-outer" d="M79,32 C91,-6 106,-11 97,23 C93,40 83,49 76,42 Z"></path>
+          <path class="bunny-ear-inner" d="M40,28 C33,3 23,-1 29,22 C32,33 38,39 42,34 Z"></path>
+          <path class="bunny-ear-inner" d="M80,28 C87,3 97,-1 91,22 C88,33 82,39 78,34 Z"></path>
+
+          <ellipse class="bunny-head" cx="60" cy="70" rx="47" ry="43"></ellipse>
+          <ellipse class="bunny-highlight" cx="40" cy="46" rx="11" ry="6.5"></ellipse>
+
+          <ellipse class="bunny-blush" cx="23" cy="82" rx="8.5" ry="5.5"></ellipse>
+          <ellipse class="bunny-blush" cx="97" cy="82" rx="8.5" ry="5.5"></ellipse>
+          <path class="bunny-eye-closed" d="M32,66 Q43,58 54,66"></path>
+          <path class="bunny-eye-closed" d="M66,66 Q77,58 88,66"></path>
+
+          <g class="bunny-paw-group" id="bunny-paw-left">
+            <path class="bunny-paw" d="M47,60 C48,45 32,44 27,59 C22,74 25,96 46,96 C53,96 53,72 47,60 Z"></path>
+            <path class="bunny-paw-seam" d="M33,70 Q38,75 34,84"></path>
+          </g>
+          <g class="bunny-paw-group" id="bunny-paw-right">
+            <path class="bunny-paw" d="M73,60 C72,45 88,44 93,59 C98,74 95,96 74,96 C67,96 67,72 73,60 Z"></path>
+            <path class="bunny-paw-seam" d="M87,70 Q82,75 86,84"></path>
+          </g>
+
+          <ellipse class="bunny-nose" cx="60" cy="90" rx="4.2" ry="3.2"></ellipse>
+        </svg>
+        <svg class="big-heart" id="big-heart" viewBox="0 0 24 22" aria-hidden="true">
+          <defs>
+            <linearGradient id="bigHeartGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" style="stop-color:var(--color-blush)"></stop>
+              <stop offset="100%" style="stop-color:var(--color-rose)"></stop>
+            </linearGradient>
+          </defs>
+          <path fill="url(#bigHeartGrad)" d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z"></path>
+        </svg>
+      </div>
+
+      <h2 class="question-text" id="question-text">Do you love me? <span class="question-text__heart">♥</span></h2>
+
+      <div class="question-stage" id="question-stage">
+        <button class="btn btn--glow question-btn question-btn--yes" id="yes-btn" type="button">YES</button>
+        <button class="btn question-btn question-btn--no" id="no-btn" type="button">NO</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 6.6 — GALAXY OF HEARTS ===================== -->
+  <section class="scene scene--galaxy" id="scene-galaxy" data-scene="galaxy">
+    <div class="galaxy-viewport" id="galaxy-viewport">
+      <canvas class="galaxy-canvas" id="galaxy-canvas"></canvas>
+      <div class="galaxy-field" id="galaxy-field"></div>
+      <div class="galaxy-moon-position" aria-hidden="true">
+        <div class="galaxy-moon-glow"></div>
+        <div class="galaxy-moon" id="galaxy-moon">
+          <span class="crater crater--1"></span>
+          <span class="crater crater--2"></span>
+          <span class="crater crater--3"></span>
+          <span class="crater crater--4"></span>
+          <span class="crater crater--5"></span>
+          <span class="crater crater--6"></span>
+        </div>
+      </div>
+    </div>
+    <div class="galaxy-banner" id="galaxy-banner">
+      <span class="galaxy-banner__heart">♥</span>
+      <p class="galaxy-banner__text" id="galaxy-banner-text"></p>
+    </div>
+
+    <div class="galaxy-ui">
+      <h2 class="scene-title">A Universe of Us</h2>
+      <p class="scene-subtitle">Drag to explore the stars &middot; tap a rose heart</p>
+      <button class="btn btn--outline scene-continue" data-next type="button">Continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== SCENE 7 — GRAND FINALE ===================== -->
+  <section class="scene scene--finale" id="scene-finale" data-scene="finale">
+    <div class="finale-card" id="finale-card">
+      <div class="finale-card__bunting finale-card__bunting--left" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="finale-card__bunting finale-card__bunting--right" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+
+      <span class="finale-card__sparkle finale-card__sparkle--1" aria-hidden="true">✦</span>
+      <span class="finale-card__sparkle finale-card__sparkle--2" aria-hidden="true">✦</span>
+
+      <h1 class="finale-card__title">
+        <span class="finale-card__title-line finale-card__title-line--light">Happy</span>
+        <span class="finale-card__title-line finale-card__title-line--bold">Birthday<span class="finale-card__hat">🎉</span></span>
+      </h1>
+
+      <p class="finale-card__badge">
+        <span class="finale-card__star">★</span>
+        <span id="finale-badge-text">Arina</span>
+        <span class="finale-card__star">★</span>
+      </p>
+
+      <div class="finale-card__illustration">
+        <span class="finale-card__balloon finale-card__balloon--left"></span>
+        <span class="finale-card__balloon finale-card__balloon--right"></span>
+        <div class="finale-card__circle">
+          <svg class="finale-bear-svg" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <linearGradient id="bearBodyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#cd9666"></stop>
+                <stop offset="100%" stop-color="#a8703f"></stop>
+              </linearGradient>
+            </defs>
+            <ellipse cx="50" cy="76" rx="23" ry="18" fill="url(#bearBodyGrad)"></ellipse>
+            <ellipse cx="72" cy="70" rx="7.5" ry="11" fill="url(#bearBodyGrad)" transform="rotate(24 72 70)"></ellipse>
+            <circle cx="33" cy="27" r="9.5" fill="url(#bearBodyGrad)"></circle>
+            <circle cx="67" cy="27" r="9.5" fill="url(#bearBodyGrad)"></circle>
+            <circle cx="33" cy="28" r="4.6" fill="#f2c9d9"></circle>
+            <circle cx="67" cy="28" r="4.6" fill="#f2c9d9"></circle>
+            <circle cx="50" cy="42" r="24" fill="url(#bearBodyGrad)"></circle>
+            <ellipse cx="50" cy="48" rx="11.5" ry="8.5" fill="#fbeee0"></ellipse>
+            <circle cx="42.5" cy="39" r="2.3" fill="#3a2a2f"></circle>
+            <circle cx="57.5" cy="39" r="2.3" fill="#3a2a2f"></circle>
+            <ellipse cx="50" cy="47" rx="2.6" ry="2" fill="#3a2a2f"></ellipse>
+            <path d="M45,52 Q50,55 55,52" fill="none" stroke="#3a2a2f" stroke-width="1.4" stroke-linecap="round"></path>
+            <ellipse cx="28" cy="46" rx="4" ry="2.6" fill="#f2879e" opacity="0.6"></ellipse>
+            <ellipse cx="72" cy="46" rx="4" ry="2.6" fill="#f2879e" opacity="0.6"></ellipse>
+            <path d="M50,8 L39,26 L61,26 Z" fill="#f2879e"></path>
+            <circle cx="50" cy="7" r="3.4" fill="#f8dfa8"></circle>
+            <rect x="63" y="53" width="18" height="11" rx="2.4" fill="#f2879e"></rect>
+            <rect x="63" y="48" width="18" height="6" rx="2.4" fill="#fff8ef"></rect>
+            <line x1="72" y1="43" x2="72" y2="48" stroke="#e6b566" stroke-width="2"></line>
+            <circle cx="72" cy="42" r="1.8" fill="#f6d9a0"></circle>
+          </svg>
+          <span class="finale-card__dot finale-card__dot--1"></span>
+          <span class="finale-card__dot finale-card__dot--2"></span>
+          <span class="finale-card__dot finale-card__dot--3"></span>
+          <span class="finale-card__dot finale-card__dot--4"></span>
+        </div>
+      </div>
+      <p class="finale-card__cutie" id="finale-cutie">Cutie</p>
+
+      <p class="finale-card__from">Made with love, just for you — <span id="finale-sender">Shubham</span></p>
+
+      <div class="finale-card__actions">
+        <button class="btn btn--glow" id="replay-btn" type="button">Replay Experience</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+<script src="js/script.js"></script>
+</body>
+</html>
